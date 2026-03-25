@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>大会運営・ライブスコア管理システム</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -39,58 +40,71 @@ button {
 
 /* --- 管理画面スマホ最適化（768px以下） --- */
 @media (max-width: 768px) {
-    /* 1. テーブルをカード形式にする（スマホで見やすく） */
+    /* 0. 【追加】画面の左右余白を消してフルワイドにする */
+    .container, .container-fluid {
+        padding-left: 4px !important;  /* ギリギリまで広げる */
+        padding-right: 4px !important;
+    }
+
+    /* 1. テーブルをカード形式に変更 */
     .table, .table thead, .table tbody, .table th, .table td, .table tr { 
         display: block; 
     }
     .table thead { display: none; }
     
     .game-row {
-        margin-bottom: 20px;
-        padding: 15px;
+        margin-bottom: 15px;
+        padding: 10px; /* 余白を少し削ってボタンの面積を稼ぐ */
         border: 1px solid #dee2e6;
-        border-radius: 12px;
+        border-radius: 8px;
         background: #fff;
+        width: 100%; /* 横幅いっぱい */
     }
 
     .game-row td {
         border: none;
-        padding: 8px 0;
+        padding: 5px 0;
         width: 100% !important;
         text-align: center;
     }
 
-    /* 2. 【最重要】点数操作ボタン（＋・ー）を巨大化 */
+    /* 2. 点数操作ボタン（＋・ー）のエリア調整 */
     .score-control-area {
         display: grid;
-        grid-template-columns: 1fr 1fr; /* 左右2列（ホーム/アウェイ） */
-        gap: 15px;
-        margin: 15px 0;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px; /* 隙間を詰めるとボタンがさらに大きくなります */
+        margin: 10px 0;
     }
 
-    /* 点数ボタン (+と-) のサイズをスマホ専用に強化 */
+    /* 点数ボタン (+と-) のサイズを最大化 */
     .btn-score-mobile {
-        padding: 20px 0 !important; /* 縦に大きくして親指で押しやすく */
-        font-size: 1.8rem !important; /* 記号を大きく */
+        padding: 22px 0 !important; /* 縦幅をさらにアップ */
+        font-size: 2rem !important;  /* 記号をより大きく */
         font-weight: 800;
-        border-radius: 10px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
     }
 
-    /* 3. その他のボタン（確定・棄権など）は少し控えめなサイズに */
+    /* 3. その他のボタンも指で押しやすいサイズに */
     .btn-action-mobile {
-        padding: 12px !important;
-        font-size: 1rem !important;
+        padding: 14px !important;
+        font-size: 1.1rem !important;
         font-weight: bold;
     }
+}
+
+/* 連打時の誤選択防止 */
+button {
+    user-select: none;
+    -webkit-user-select: none;
 }
     </style>
 </head>
 <body>
-<div id="app" class="container py-3" v-cloak>
+<div id="app" class="container-fluid py-2 px-1" v-cloak>
 
     <div class="header-banner shadow-sm rounded mb-4 text-center">
         <div class="py-3 bg-dark text-white rounded-top">
@@ -329,11 +343,7 @@ button {
     </tr>
 </tbody>
             </table>
-        </div>
-    </div>
-</div>
-
-<script>
+        </div></div></div><script>
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzmjsXL_PnAh0uIfLuQ6kEXNinHEWT_tGjYGGQdo63zgkAOvgJJK4Y2hhwC7sM8vZ58/exec";
 const firebaseConfig = {
     apiKey: "AIzaSyASxcZep_OpFzc2EML2sUMRuK8rDJXv-cg",
