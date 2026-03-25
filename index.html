@@ -30,6 +30,63 @@
     .bg-dark {
         background-color: #1a1e21 !important; /* 少し高級感のある黒 */
     }
+
+/* --- 管理画面スマホ・PC共通設定 --- */
+button {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* --- 管理画面スマホ最適化（768px以下） --- */
+@media (max-width: 768px) {
+    /* 1. テーブルをカード形式にする（スマホで見やすく） */
+    .table, .table thead, .table tbody, .table th, .table td, .table tr { 
+        display: block; 
+    }
+    .table thead { display: none; }
+    
+    .game-row {
+        margin-bottom: 20px;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 12px;
+        background: #fff;
+    }
+
+    .game-row td {
+        border: none;
+        padding: 8px 0;
+        width: 100% !important;
+        text-align: center;
+    }
+
+    /* 2. 【最重要】点数操作ボタン（＋・ー）を巨大化 */
+    .score-control-area {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* 左右2列（ホーム/アウェイ） */
+        gap: 15px;
+        margin: 15px 0;
+    }
+
+    /* 点数ボタン (+と-) のサイズをスマホ専用に強化 */
+    .btn-score-mobile {
+        padding: 20px 0 !important; /* 縦に大きくして親指で押しやすく */
+        font-size: 1.8rem !important; /* 記号を大きく */
+        font-weight: 800;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+    }
+
+    /* 3. その他のボタン（確定・棄権など）は少し控えめなサイズに */
+    .btn-action-mobile {
+        padding: 12px !important;
+        font-size: 1rem !important;
+        font-weight: bold;
+    }
+}
     </style>
 </head>
 <body>
@@ -228,39 +285,45 @@
 </td>
 
         <td class="text-center">
-    <select v-model="activeGameIndex[match.id + '-' + gIdx]" class="form-select form-select-sm mb-2">
-        <option :value="0">1G目</option>
-        <option :value="1">2G目</option>
-        <option :value="2">3G目</option>
-    </select>
-
-    <div class="d-flex flex-column gap-2 justify-content-center">
-    <div class="btn-group btn-group-sm">
-        <button class="btn btn-primary" @click="updateTotalScore(match, gIdx, 'home', 1)">H＋</button>
-        <button class="btn btn-outline-primary" @click="updateTotalScore(match, gIdx, 'home', -1)">－</button>
-    </div>
-    
-    <div class="btn-group btn-group-sm">
-        <button class="btn btn-danger" @click="updateTotalScore(match, gIdx, 'away', 1)">A＋</button>
-        <button class="btn btn-outline-danger" @click="updateTotalScore(match, gIdx, 'away', -1)">－</button>
+    <div class="mb-2">
+        <select v-model="activeGameIndex[match.id + '-' + gIdx]" class="form-select form-select-sm border-primary">
+            <option :value="0">1G目</option>
+            <option :value="1">2G目</option>
+            <option :value="2">3G目</option>
+        </select>
     </div>
 
-    <button class="btn btn-sm fw-bold" 
-        :class="game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'btn-success' : 'btn-outline-dark'"
-        @click="toggleGameStatus(match, gIdx)">
-    
-    <i class="bi" :class="game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'bi-check-circle-fill' : 'bi-clock'"></i>
-    
-    {{ game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? '確定済み（解除可）' : '終了確定' }}
-</button>
+    <div class="score-control-area">
+        <div class="d-flex flex-column gap-1">
+            <button class="btn btn-primary btn-score-mobile" @click="updateTotalScore(match, gIdx, 'home', 1)">
+                H＋
+            </button>
+            <button class="btn btn-outline-primary py-1 fw-bold" @click="updateTotalScore(match, gIdx, 'home', -1)">
+                －
+            </button>
+        </div>
+        
+        <div class="d-flex flex-column gap-1">
+            <button class="btn btn-danger btn-score-mobile" @click="updateTotalScore(match, gIdx, 'away', 1)">
+                A＋
+            </button>
+            <button class="btn btn-outline-danger py-1 fw-bold" @click="updateTotalScore(match, gIdx, 'away', -1)">
+                －
+            </button>
+        </div>
+    </div>
 
-<button class="btn btn-sm" style="font-size: 0.7rem;"
-            :class="game.retired && game.retired[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'btn-danger' : 'btn-outline-danger'"
-            @click="setRetirement(match, gIdx)">
-        <i class="bi bi-exclamation-triangle-fill me-1"></i>
-        {{ game.retired && game.retired[activeGameIndex[match.id + '-' + gIdx] || 0] ? '棄権取消' : '棄権登録' }}
-    </button>
-</div>
+    <div class="d-flex flex-column gap-2 mt-2">
+        <button class="btn btn-sm fw-bold py-2 btn-action-mobile" 
+            :class="game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'btn-success' : 'btn-outline-dark'"
+            @click="toggleGameStatus(match, gIdx)">
+            <i class="bi" :class="game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'bi-check-circle-fill' : 'bi-clock'"></i>
+            <span class="small">{{ game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? '確定済み' : '終了確定' }}</span>
+        </button>
+
+        <button class="btn btn-sm text-danger p-0" style="font-size: 0.7rem;" @click="setRetirement(match, gIdx)">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>棄権登録
+        </button>
     </div>
 </td>
     </tr>
