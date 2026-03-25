@@ -177,19 +177,21 @@
         <td class="fw-bold text-primary">{{ game.type }}</td>
         
         <td>
-            <div class="d-flex flex-column gap-1">
-                <select v-model="game.homeP1" @change="syncToFirebase(match)" class="form-select form-select-sm">
-                    <option value="">選手1を選択...</option>
-                    <option v-for="(p, pIdx) in getPlayerList(match.homeUniv)" :key="pIdx" :value="p.name">
-    {{ p.name }}
-</option>
-                </select>
-                <select v-if="game.type.includes('D')" v-model="game.homeP2" @change="syncToFirebase(match)" class="form-select form-select-sm">
-                    <option value="">選手2を選択...</option>
-                    <option v-for="p in getPlayerList(match.homeUniv)" :key="p.name" :value="p.name">{{ p.name }}</option>
-                </select>
-            </div>
-        </td>
+    <div class="d-flex flex-column gap-1">
+        <select v-model="game.homeP1" @change="syncToFirebase(match)" class="form-select form-select-sm">
+            <option value="">選手1を選択...</option>
+            <option v-for="p in getPlayerList(match.homeUniv)" :key="p.name" :value="p.name">
+                {{ p.back_number ? '[' + p.back_number + '] ' : '' }}{{ p.name }}
+            </option>
+        </select>
+        <select v-if="game.type.includes('D')" v-model="game.homeP2" @change="syncToFirebase(match)" class="form-select form-select-sm">
+            <option value="">選手2を選択...</option>
+            <option v-for="p in getPlayerList(match.homeUniv)" :key="p.name" :value="p.name">
+                {{ p.back_number ? '[' + p.back_number + '] ' : '' }}{{ p.name }}
+            </option>
+        </select>
+    </div>
+</td>
 
         <td style="min-width: 200px;">
     <div class="d-flex justify-content-center gap-2">
@@ -209,17 +211,21 @@
 </td>
 
         <td>
-            <div class="d-flex flex-column gap-1">
-                <select v-model="game.awayP1" @change="syncToFirebase(match)" class="form-select form-select-sm">
-                    <option value="">選手1を選択...</option>
-                    <option v-for="p in getPlayerList(match.awayUniv)" :key="p.name" :value="p.name">{{ p.name }}</option>
-                </select>
-                <select v-if="game.type.includes('D')" v-model="game.awayP2" @change="syncToFirebase(match)" class="form-select form-select-sm">
-                    <option value="">選手2を選択...</option>
-                    <option v-for="p in getPlayerList(match.awayUniv)" :key="p.name" :value="p.name">{{ p.name }}</option>
-                </select>
-            </div>
-        </td>
+    <div class="d-flex flex-column gap-1">
+        <select v-model="game.awayP1" @change="syncToFirebase(match)" class="form-select form-select-sm">
+            <option value="">選手1を選択...</option>
+            <option v-for="p in getPlayerList(match.awayUniv)" :key="p.name" :value="p.name">
+                {{ p.back_number ? '[' + p.back_number + '] ' : '' }}{{ p.name }}
+            </option>
+        </select>
+        <select v-if="game.type.includes('D')" v-model="game.awayP2" @change="syncToFirebase(match)" class="form-select form-select-sm">
+            <option value="">選手2を選択...</option>
+            <option v-for="p in getPlayerList(match.awayUniv)" :key="p.name" :value="p.name">
+                {{ p.back_number ? '[' + p.back_number + '] ' : '' }}{{ p.name }}
+            </option>
+        </select>
+    </div>
+</td>
 
         <td class="text-center">
     <select v-model="activeGameIndex[match.id + '-' + gIdx]" class="form-select form-select-sm mb-2">
