@@ -240,50 +240,66 @@ createApp({
         async syncToFirebase(match) {
             await db.collection('matches').doc(match.id).update({ games: match.games, isLive: match.isLive, matchDate: match.matchDate || "" });
         },
-        toggleGameStatus(match, gIdx) {
-            const curG = this.activeGameIndex[match.id + '-' + gIdx] || 0;
-            match.games[gIdx].gameStatus[curG] = !match.games[gIdx].gameStatus[curG];
+        
+toggleGameStatus(match, gIdx) {
+            const key = match.id + '-' + gIdx;
+    const curG = this.activeGameIndex[key] || 0;
+    
+    // 現在のゲームの状態を反転（確定にする）
+    match.games[gIdx].gameStatus[curG] = !match.games[gIdx].gameStatus[curG];
+
+    // --- ここから自動切り替えロジックを追加 ---
+    // 「確定」にした時だけ、次のゲームへ進める
+    if (match.games[gIdx].gameStatus[curG] === true) {
+        // 1G目(0)なら2G目(1)へ、2G目(1)なら3G目(2)へ
+        if (curG < 2) {
+            // スコアを見て、すでに試合が決着していないか等の簡易チェックを入れることも可能ですが、
+            // 運用の柔軟性を考えて単純にインデックスを+1します
+            this.activeGameIndex[key] = curG + 1;
+        }
+    }
             this.syncToFirebase(match);
         },
-        setRetirement(match, gIdx) {
-    const curG = this.activeGameIndex[match.id + '-' + gIdx] || 0;
-    
-    // データの初期化（念のため）
-    if (!match.games[gIdx].retired) {
-        match.games[gIdx].retired = [null, null, null];
-    }
+       
 
-    const currentState = match.games[gIdx].retired[curG];
+    setRetirement(match, gIdx) {
+            const key = match.id + '-' + gIdx;
+            const curG = this.activeGameIndex[key] || 0;
+            
+            if (!match.games[gIdx].retired) {
+                match.games[gIdx].retired = [null, null, null];
+            }
 
-    // 1. すでに棄権設定がある場合（解除の確認）
-    if (currentState) {
-        if (confirm("現在登録されている棄権設定を解除して、通常の試合に戻しますか？")) {
-            match.games[gIdx].retired[curG] = null;
-            // 解除時は「終了確定」も一旦解いておくと親切です
-            match.games[gIdx].gameStatus[curG] = false;
-            this.syncToFirebase(match);
-        }
-        return;
-    }
+            const currentState = match.games[gIdx].retired[curG];
 
-    // 2. 新しく棄権を登録する場合（誤操作防止の2段構え）
-    // 【第1ステップ】そもそも棄権登録に進むか確認
-    if (confirm("このゲームに「棄権」を登録しますか？\n（間違えてボタンを押した場合は「キャンセル」を押してください）")) {
-        
-        // 【第2ステップ】どちらの棄権かを選択
-        // confirmの仕様上、OK = ホーム、キャンセル = アウェイとなります
-        const isHomeRetire = confirm("どちら側が棄権しましたか？\n\n・ホーム(左)側なら → 「OK」\n・アウェイ(右)側なら → 「キャンセル」");
-        
-        const side = isHomeRetire ? 'h' : 'a';
-        match.games[gIdx].retired[curG] = side;
-        
-        // 棄権登録時は自動的に「終了確定」状態にする
-        match.games[gIdx].gameStatus[curG] = true;
-        
-        this.syncToFirebase(match);
-        alert(`${side === 'h' ? 'ホーム' : 'アウェイ'}側の棄権として登録しました。`);
-    }
-},
+            // 1. すでに棄権設定がある場合（解除）
+            if (currentState) {
+                if (confirm("現在登録されている棄権設定を解除して、通常の試合に戻しますか？")) {
+                    match.games[gIdx].retired[curG] = null;
+                    match.games[gIdx].gameStatus[curG] = false;
+                    this.syncToFirebase(match);
+                }
+                return; // ここで処理を終了
+            }
+
+            // 2. 新しく棄権を登録する場合
+            if (confirm("このゲームに「棄権」を登録しますか？")) {
+                const isHomeRetire = confirm("どちら側が棄権しましたか？\n\n・ホーム(左)側なら → 「OK」\n・アウェイ(右)側なら → 「キャンセル」");
+                const side = isHomeRetire ? 'h' : 'a';
+                
+                match.games[gIdx].retired[curG] = side;
+                match.games[gIdx].gameStatus[curG] = true;
+
+                // 棄権時も自動で次へ
+                if (curG < 2) {
+                    this.activeGameIndex[key] = curG + 1;
+                }
+                
+                this.syncToFirebase(match);
+                alert(`${side === 'h' ? 'ホーム' : 'アウェイ'}側の棄権として登録しました。`);
+            }
+        },
+
         getPlayerList(univName) {
             const record = this.allRecords.find(r => r.univ_name === univName && String(r.univ_id).startsWith(this.currentTab.gender));
             return record ? JSON.parse(record.player_reg) : [];
