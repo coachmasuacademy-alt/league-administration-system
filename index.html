@@ -194,17 +194,31 @@ createApp({
             return this.allUnivs.filter(u => String(u.univ_id).startsWith(this.currentTab.gender));
         }
     },
-    async mounted() {
-        try {
-            const res = await fetch(GAS_API_URL);
-            const data = await res.json();
-            this.allUnivs = data.master; this.allRecords = data.records;
-        } catch (e) { console.error(e); }
+   async mounted() {
+    try {
+        const res = await fetch(GAS_API_URL);
+        const data = await res.json();
+        this.allUnivs = data.master; 
+        this.allRecords = data.records;
+    } catch (e) { console.error(e); }
 
-        db.collection('matches').orderBy('sortOrder', 'asc').onSnapshot(qs => {
-            this.allMatches = qs.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Firestoreのリアルタイム監視部分
+    db.collection('matches').orderBy('sortOrder', 'asc').onSnapshot(qs => {
+        const matches = qs.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        this.allMatches = matches;
+
+        // ★ ここを追加：各ゲームの選択肢を「1G目（0）」で初期化する
+        matches.forEach(match => {
+            match.games.forEach((game, gIdx) => {
+                const key = match.id + '-' + gIdx;
+                // まだ選択状態が登録されていない（undefined）場合だけ、0を代入
+                if (this.activeGameIndex[key] === undefined) {
+                    this.activeGameIndex[key] = 0;
+                }
+            });
         });
-    },
+    });
+},
     methods: {
         switchTab(g, d) { this.currentTab.gender = g; this.currentTab.division = d; },
         resetLeagueSlots() { this.leagueSlot = ["", "", "", "", "", ""]; },
