@@ -139,10 +139,34 @@
                         </td>
                         <td>
                             <select v-model="activeGameIndex[match.id + '-' + gIdx]" class="form-select form-select-sm mb-2 border-primary"><option :value="0">1G</option><option :value="1">2G</option><option :value="2">3G</option></select>
-                            <div class="score-control-area">
-                                <div class="d-flex flex-column gap-1"><button class="btn btn-primary btn-score-mobile" @click="updateTotalScore(match, gIdx, 'home', 1)">H+</button><button class="btn btn-outline-primary fw-bold" @click="updateTotalScore(match, gIdx, 'home', -1)">-</button></div>
-                                <div class="d-flex flex-column gap-1"><button class="btn btn-danger btn-score-mobile" @click="updateTotalScore(match, gIdx, 'away', 1)">A+</button><button class="btn btn-outline-danger fw-bold" @click="updateTotalScore(match, gIdx, 'away', -1)">-</button></div>
-                            </div>
+
+
+                           <div class="score-control-area">
+        <div class="d-flex flex-column gap-1">
+            <button class="btn btn-primary btn-score-mobile" @click="updateTotalScore(match, gIdx, 'home', 1)">H+</button>
+            <button class="btn btn-outline-primary fw-bold" @click="updateTotalScore(match, gIdx, 'home', -1)">-</button>
+        </div>
+        <div class="d-flex flex-column gap-1">
+            <button class="btn btn-danger btn-score-mobile" @click="updateTotalScore(match, gIdx, 'away', 1)">A+</button>
+            <button class="btn btn-outline-danger fw-bold" @click="updateTotalScore(match, gIdx, 'away', -1)">-</button>
+        </div>
+    </div>
+
+    <div class="mt-2 d-flex justify-content-center gap-2">
+    <button class="btn btn-sm py-1" 
+            :class="(game.initialServer && game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] === 'h') ? 'btn-dark' : 'btn-outline-dark'" 
+            @click="if(!game.initialServer) game.initialServer={0:'h',1:'h',2:'h'}; game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] = 'h'; $forceUpdate(); syncToFirebase(match)">
+        Hサ
+    </button>
+            
+    <button class="btn btn-sm py-1" 
+            :class="(game.initialServer && game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] === 'a') ? 'btn-dark' : 'btn-outline-dark'" 
+            @click="if(!game.initialServer) game.initialServer={0:'h',1:'h',2:'h'}; game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] = 'a'; $forceUpdate(); syncToFirebase(match)">
+        Aサ
+    </button>
+</div>
+
+
                             <div class="d-flex flex-column gap-2 mt-2">
                                 <button class="btn btn-sm btn-action-mobile" :class="game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'btn-success' : 'btn-outline-dark'" @click="toggleGameStatus(match, gIdx)">{{ game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? '確定済' : '終了確定' }}</button>
                                 <button class="btn btn-sm text-danger" style="font-size: 0.7rem;" @click="setRetirement(match, gIdx)">棄権</button>
@@ -229,14 +253,44 @@ createApp({
             if (pw === "kanto2026") this.isSettingsLocked = false;
         },
         lockSettings() { this.isSettingsLocked = true; },
-        async updateTotalScore(match, gIdx, side, val) {
-            const key = match.id + '-' + gIdx;
-            const curG = this.activeGameIndex[key] || 0;
-            const game = match.games[gIdx];
-            if (side === 'home') game.scores[curG].h = Math.max(0, game.scores[curG].h + val);
-            else game.scores[curG].a = Math.max(0, game.scores[curG].a + val);
-            await this.syncToFirebase(match);
-        },
+        
+async updateTotalScore(match, gIdx, side, val) {
+    const key = match.id + '-' + gIdx;
+    const curG = this.activeGameIndex[key] || 0;
+    const game = match.games[gIdx];
+
+    // Firestore対策：オブジェクト型で初期化されているか確認
+    if (!game.pointHistory || Array.isArray(game.pointHistory)) {
+        game.pointHistory = { 0: [], 1: [], 2: [] };
+    }
+    // 指定セットの配列がなければ作成
+    if (!game.pointHistory[curG]) game.pointHistory[curG] = [];
+
+    if (val === 1) {
+        if (side === 'home') {
+            game.scores[curG].h++;
+            game.pointHistory[curG].push('h');
+            game.serverSide = 'h';
+        } else {
+            game.scores[curG].a++;
+            game.pointHistory[curG].push('a');
+            game.serverSide = 'a';
+        }
+    } else {
+        if (side === 'home') {
+            if (game.scores[curG].h > 0) {
+                game.scores[curG].h--;
+                game.pointHistory[curG].pop();
+            }
+        } else {
+            if (game.scores[curG].a > 0) {
+                game.scores[curG].a--;
+                game.pointHistory[curG].pop();
+            }
+        }
+    }
+    await this.syncToFirebase(match);
+},
         async syncToFirebase(match) {
             await db.collection('matches').doc(match.id).update({ games: match.games, isLive: match.isLive, matchDate: match.matchDate || "" });
         },
@@ -331,9 +385,14 @@ toggleGameStatus(match, gIdx) {
                         homeUniv: univs[pair[0]], awayUniv: univs[pair[1]],
                         matchDate: "", status: 'ongoing', isLive: false,
                         games: ['1S','2S','1D','2D','3S'].map(t => ({
-                            type: t, homeP1:'', homeP2:'', awayP1:'', awayP2:'',
-                            scores: [{h:0,a:0},{h:0,a:0},{h:0,a:0}], gameStatus: [false,false,false], retired: [null,null,null]
-                        }))
+    type: t, homeP1:'', homeP2:'', awayP1:'', awayP2:'',
+    scores: [{h:0,a:0},{h:0,a:0},{h:0,a:0}],
+    gameStatus: [false,false,false],
+    retired: [null,null,null],
+    pointHistory: { 0: [], 1: [], 2: [] },
+    // ★ここを {} ではなく、あらかじめ 0,1,2 のキーを入れておく
+    initialServer: { 0: 'h', 1: 'h', 2: 'h' } 
+}))
                     });
                 });
                 await batch.commit();
