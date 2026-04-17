@@ -34,6 +34,23 @@
             .btn-score-mobile { padding: 22px 0 !important; font-size: 2rem !important; font-weight: 800; border-radius: 8px; display: flex; align-items: center; justify-content: center; width: 100%; }
             .btn-action-mobile { padding: 14px !important; font-size: 1.1rem !important; font-weight: bold; }
         }
+
+.btn-score-mobile {
+    /* 名前が長い場合に備えてフォントサイズを自動調整 */
+    font-size: 1.2rem !important; 
+    line-height: 1.2;
+    padding: 15px 4px !important; /* 上下パディングを少し削る */
+    word-break: break-all;      /* 折り返しを許可 */
+    min-height: 80px;           /* 高さを確保 */
+}
+
+/* 太枠と強調のスタイル */
+.active-game-border {
+    border: 3px solid #000 !important; /* 黒色で3pxの太さ */
+    transform: scale(1.05);           /* ほんの少しだけ大きくして目立たせる */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important; /* 影を強くする */
+    z-index: 1;                       /* 他の枠より前面に出す */
+}
     </style>
 </head>
 <body>
@@ -41,7 +58,7 @@
 
     <div class="header-banner shadow-sm rounded mb-4 text-center">
         <div class="py-3 bg-dark text-white rounded-top">
-            <h2 class="m-0 fw-bold letter-spacing-custom"><i class="bi bi-trophy-fill text-warning me-2"></i> 関東学生バドミントン連盟 運営システム</h2>
+            <h2 class="m-0 fw-bold letter-spacing-custom"><i class="bi bi-trophy-fill text-warning me-2"></i> 関東学生バドミントン連盟 リーグ戦運営システム</h2>
         </div>
         <div class="py-2 bg-secondary text-white small rounded-bottom opacity-75">KANTO STUDENT BADMINTON FEDERATION SYSTEM</div>
     </div>
@@ -145,11 +162,14 @@
                         </td>
                         <td style="min-width: 200px;">
                             <div class="d-flex justify-content-center gap-2">
-                                <div v-for="n in 3" :key="n" class="p-1 border rounded shadow-sm bg-white" style="width: 60px;">
-                                    <div class="small text-muted" style="font-size: 0.65rem;">{{ n }}G</div>
-                                    <div class="fw-bold">{{ game.scores[n-1].h }} - {{ game.scores[n-1].a }}</div>
-                                    <div v-if="game.retired && game.retired[n-1]" class="text-danger small">棄権</div>
-                                </div>
+                                <div v-for="n in 3" :key="n" 
+     class="p-1 border rounded shadow-sm bg-white" 
+     :class="{ 'active-game-border': (activeGameIndex[match.id + '-' + gIdx] || 0) === (n-1) }"
+     style="width: 60px; transition: all 0.3s ease;">
+    <div class="small text-muted" style="font-size: 0.65rem;">{{ n }}G</div>
+    <div class="fw-bold">{{ game.scores[n-1].h }} - {{ game.scores[n-1].a }}</div>
+    <div v-if="game.retired && game.retired[n-1]" class="text-danger small">棄権</div>
+</div>
                             </div>
                         </td>
                         <td>
@@ -161,19 +181,34 @@
 
 
                            <div class="score-control-area">
-        <div class="d-flex flex-column gap-1">
-            <button class="btn btn-primary btn-score-mobile" @click="updateTotalScore(match, gIdx, 'home', 1)">H+</button>
-            <button class="btn btn-outline-primary fw-bold" @click="updateTotalScore(match, gIdx, 'home', -1)">-</button>
-        </div>
-        <div class="d-flex flex-column gap-1">
-            <button class="btn btn-danger btn-score-mobile" @click="updateTotalScore(match, gIdx, 'away', 1)">A+</button>
-            <button class="btn btn-outline-danger fw-bold" @click="updateTotalScore(match, gIdx, 'away', -1)">-</button>
-        </div>
+    <div class="d-flex flex-column gap-1">
+        <button class="btn btn-primary btn-score-mobile" 
+                @click="updateTotalScore(match, gIdx, 'home', 1)"
+                :disabled="match.status === 'finished' || game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0]">
+            {{ getSideLabel(game, 'home') }} +
+        </button>
+        <button class="btn btn-outline-primary fw-bold" 
+                @click="updateTotalScore(match, gIdx, 'home', -1)"
+                :disabled="match.status === 'finished' || game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0]">-</button>
     </div>
+    <div class="d-flex flex-column gap-1">
+        <button class="btn btn-danger btn-score-mobile" 
+                @click="updateTotalScore(match, gIdx, 'away', 1)"
+                :disabled="match.status === 'finished' || game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0]">
+            {{ getSideLabel(game, 'away') }} +
+        </button>
+        <button class="btn btn-outline-danger fw-bold" 
+                @click="updateTotalScore(match, gIdx, 'away', -1)"
+                :disabled="match.status === 'finished' || game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0]">-</button>
+    </div>
+</div>
 
                                 <div class="d-flex flex-column gap-2 mt-2">
                                 <button class="btn btn-sm btn-action-mobile" :class="game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'btn-success' : 'btn-outline-dark'" @click="toggleGameStatus(match, gIdx)">{{ game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? '確定済' : '終了確定' }}</button>
-                                <button class="btn btn-sm text-danger" style="font-size: 0.7rem;" @click="setRetirement(match, gIdx)">棄権</button>
+                                <button class="btn btn-sm text-danger" 
+        style="font-size: 0.7rem;" 
+        @click="setRetirement(match, gIdx)"
+        :disabled="match.status === 'finished' || game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0]">棄権</button>
                             </div>
                         </td>
                     </tr>
@@ -182,7 +217,7 @@
         </div>
     </div> </div>
 </div> <script>
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzmjsXL_PnAh0uIfLuQ6kEXNinHEWT_tGjYGGQdo63zgkAOvgJJK4Y2hhwC7sM8vZ58/exec";
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwBBQHjzSAXXNTD0nq2b1LgUtH8xhvyq8KCSCxb7lv3Z5Ze86IRMp2itRlQoa3-mHSPOQ/exec";
 const firebaseConfig = {
     apiKey: "AIzaSyASxcZep_OpFzc2EML2sUMRuK8rDJXv-cg",
     authDomain: "kanto-badminton-app.firebaseapp.com",
@@ -273,6 +308,15 @@ async updateTotalScore(match, gIdx, side, val) {
     const curG = this.activeGameIndex[key] || 0;
     const game = match.games[gIdx];
 
+// --- 追加：ロックのチェック ---
+    // 1. 対戦自体が完了(finished)している場合
+    // 2. 現在選択中のゲーム(1G〜3G)が確定済(gameStatusがtrue)の場合
+    // いずれかであれば、加点・減点処理を行わずに終了します
+    if (match.status === 'finished' || game.gameStatus[curG]) {
+        console.log("確定済のためスコアは変更できません");
+        return;
+    } 
+
     // Firestore対策：オブジェクト型で初期化されているか確認
     if (!game.pointHistory || Array.isArray(game.pointHistory)) {
         game.pointHistory = { 0: [], 1: [], 2: [] };
@@ -305,6 +349,21 @@ async updateTotalScore(match, gIdx, side, val) {
     }
     await this.syncToFirebase(match);
 },
+
+getSideLabel(game, side) {
+            if (side === 'home') {
+                const p1 = game.homeP1;
+                const p2 = game.homeP2;
+                if (!p1) return 'ホーム';
+                // ダブルスで2人目がいる場合は「苗字/苗字」の形式にする
+                return game.type.includes('D') && p2 ? `${p1}/${p2}` : p1;
+            } else {
+                const p1 = game.awayP1;
+                const p2 = game.awayP2;
+                if (!p1) return 'アウェイ';
+                return game.type.includes('D') && p2 ? `${p1}/${p2}` : p1;
+            }
+        },
 
         async syncToFirebase(match) {
             await db.collection('matches').doc(match.id).update({ games: match.games, isLive: match.isLive, matchDate: match.matchDate || "" });
