@@ -57,11 +57,23 @@
             <h5 class="m-0"><i class="bi bi-gear-fill"></i> リーグ戦・対戦校設定</h5>
             <span class="badge" :class="isSettingsLocked ? 'bg-warning text-dark' : 'bg-light text-dark'">{{ isSettingsLocked ? '🔒 ロック中' : '🔓 編集可能' }}</span>
         </div>
-        <div class="card-body bg-light">
+       <div class="card-body bg-light">
             <div v-if="isSettingsLocked" class="text-center py-4">
                 <button class="btn btn-primary fw-bold" @click="unlockSettings()"><i class="bi bi-unlock-fill me-2"></i>設定を解除して編集する</button>
             </div>
             <div v-else>
+                
+                <div class="mb-4 p-3 border rounded bg-white shadow-sm">
+                    <label class="form-label fw-bold text-danger"><i class="bi bi-broadcast"></i> 会場全体ライブ配信設定</label>
+                    <div class="row g-3">
+                        <div class="col-md-6" v-for="n in 2" :key="'input-'+n">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white"><i class="bi bi-camera-video text-danger"></i> Cam {{ n }}</span>
+                                <input type="text" class="form-control" placeholder="YouTube URL" v-model="venueYoutubeUrls[n-1]" @change="syncVenueUrls()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6 border-end">
                         <label class="form-label fw-bold small text-muted">1. 種別・部を選択</label>
@@ -108,10 +120,17 @@
                 </div>
                 <input type="date" class="form-control form-control-sm" style="width: 130px;" v-model="match.matchDate" @change="syncToFirebase(match)">
             </div>
-            <h5 class="fw-bold m-0 text-center px-2">{{ match.homeUniv }} <span class="text-muted small">vs</span> {{ match.awayUniv }}</h5>
-            <button class="btn btn-success btn-sm fw-bold shadow-sm" @click="finalizeMatch(match)">対戦完了</button>
-        </div>
-
+            
+<h5 class="fw-bold m-0 text-center px-2">{{ match.homeUniv }} <span class="text-muted small">vs</span> {{ match.awayUniv }}</h5>
+<div>
+    <button v-if="match.status !== 'finished'" class="btn btn-success btn-sm fw-bold shadow-sm" @click="finalizeMatch(match)">
+        対戦完了
+    </button>
+    <button v-else class="btn btn-warning btn-sm fw-bold shadow-sm text-dark" @click="undoFinalizeMatch(match)">
+        <i class="bi bi-arrow-return-left"></i> 完了取消
+    </button>
+</div>
+</div>
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead class="table-light small text-center">
@@ -152,22 +171,7 @@
         </div>
     </div>
 
-    <div class="mt-2 d-flex justify-content-center gap-2">
-    <button class="btn btn-sm py-1" 
-            :class="(game.initialServer && game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] === 'h') ? 'btn-dark' : 'btn-outline-dark'" 
-            @click="if(!game.initialServer) game.initialServer={0:'h',1:'h',2:'h'}; game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] = 'h'; $forceUpdate(); syncToFirebase(match)">
-        Hサ
-    </button>
-            
-    <button class="btn btn-sm py-1" 
-            :class="(game.initialServer && game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] === 'a') ? 'btn-dark' : 'btn-outline-dark'" 
-            @click="if(!game.initialServer) game.initialServer={0:'h',1:'h',2:'h'}; game.initialServer[activeGameIndex[match.id + '-' + gIdx] || 0] = 'a'; $forceUpdate(); syncToFirebase(match)">
-        Aサ
-    </button>
-</div>
-
-
-                            <div class="d-flex flex-column gap-2 mt-2">
+                                <div class="d-flex flex-column gap-2 mt-2">
                                 <button class="btn btn-sm btn-action-mobile" :class="game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? 'btn-success' : 'btn-outline-dark'" @click="toggleGameStatus(match, gIdx)">{{ game.gameStatus[activeGameIndex[match.id + '-' + gIdx] || 0] ? '確定済' : '終了確定' }}</button>
                                 <button class="btn btn-sm text-danger" style="font-size: 0.7rem;" @click="setRetirement(match, gIdx)">棄権</button>
                             </div>
@@ -176,7 +180,7 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div> </div>
 </div> <script>
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzmjsXL_PnAh0uIfLuQ6kEXNinHEWT_tGjYGGQdo63zgkAOvgJJK4Y2hhwC7sM8vZ58/exec";
 const firebaseConfig = {
@@ -207,6 +211,7 @@ createApp({
             isGenerating: false,
             activeGameIndex: {},
             isSettingsLocked: true,
+venueYoutubeUrls: ["", ""],
         }
     },
     computed: {
@@ -226,6 +231,15 @@ createApp({
                 this.allUnivs = data.master; 
                 this.allRecords = data.records;
             } catch (e) { console.error("GASデータ取得失敗", e); }
+
+db.collection('settings').doc('venue').onSnapshot(doc => {
+        if (doc.exists) {
+            this.venueYoutubeUrls = doc.data().youtubeUrls || ["", ""];
+        } else {
+            // まだFirestoreにデータがない場合は初期化
+            db.collection('settings').doc('venue').set({ youtubeUrls: ["", ""] });
+        }
+    });
 
             // Firestoreのリアルタイム監視
             db.collection('matches').orderBy('sortOrder', 'asc').onSnapshot(snapshot => {
@@ -270,11 +284,11 @@ async updateTotalScore(match, gIdx, side, val) {
         if (side === 'home') {
             game.scores[curG].h++;
             game.pointHistory[curG].push('h');
-            game.serverSide = 'h';
+            // ★ game.serverSide = 'h'; を削除しました
         } else {
             game.scores[curG].a++;
             game.pointHistory[curG].push('a');
-            game.serverSide = 'a';
+            // ★ game.serverSide = 'a'; を削除しました
         }
     } else {
         if (side === 'home') {
@@ -291,6 +305,7 @@ async updateTotalScore(match, gIdx, side, val) {
     }
     await this.syncToFirebase(match);
 },
+
         async syncToFirebase(match) {
             await db.collection('matches').doc(match.id).update({ games: match.games, isLive: match.isLive, matchDate: match.matchDate || "" });
         },
@@ -358,10 +373,18 @@ toggleGameStatus(match, gIdx) {
             const record = this.allRecords.find(r => r.univ_name === univName && String(r.univ_id).startsWith(this.currentTab.gender));
             return record ? JSON.parse(record.player_reg) : [];
         },
+
         async finalizeMatch(match) {
             if (!confirm("対戦を完了しますか？")) return;
             await db.collection('matches').doc(match.id).update({ status: 'finished', isLive: false });
         },
+
+async undoFinalizeMatch(match) {
+            if (!confirm("この対戦の「完了」を取り消して、再び入力可能な状態に戻しますか？")) return;
+            // ステータスを 'ongoing' に戻す
+            await db.collection('matches').doc(match.id).update({ status: 'ongoing' });
+        },
+
         async resetMatches() {
             const pw = prompt("パスワードを入力:");
             if (pw !== "kanto2026") return;
@@ -389,14 +412,33 @@ toggleGameStatus(match, gIdx) {
     scores: [{h:0,a:0},{h:0,a:0},{h:0,a:0}],
     gameStatus: [false,false,false],
     retired: [null,null,null],
-    pointHistory: { 0: [], 1: [], 2: [] },
-    // ★ここを {} ではなく、あらかじめ 0,1,2 のキーを入れておく
-    initialServer: { 0: 'h', 1: 'h', 2: 'h' } 
+    pointHistory: { 0: [], 1: [], 2: [] }
 }))
                     });
                 });
                 await batch.commit();
             } finally { this.isGenerating = false; }
+        },
+
+async syncVenueUrls() {
+            await db.collection('settings').doc('venue').set({ 
+                youtubeUrls: this.venueYoutubeUrls 
+            }, { merge: true });
+        },
+
+        extractYouTubeId(url) {
+            if (!url) return null;
+            // 通常の動画、短縮URL、ライブ配信(/live/)など、あらゆる形式に対応する正規表現
+            const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([^#\&\?]{11})/;
+            const match = url.match(regExp);
+            
+            if (match && match[1].length === 11) {
+                return match[1]; // URLから抽出成功
+            } else if (url.trim().length === 11) {
+                return url.trim(); // 11桁のIDが直接入力された場合
+            }
+            
+            return null; // 無効なURLの場合は null を返す（iframeを表示させない）
         }
     }
 }).mount('#app');
